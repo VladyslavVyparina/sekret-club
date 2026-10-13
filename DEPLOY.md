@@ -1,63 +1,54 @@
-# Команди для розгортання бота на сервері
+# Deploy the club bot
 
-## 1. Підготовка на сервері
+## 1. On the server
 
 ```bash
-# Перейти в директорію проекту
 cd /path/to/sekret_club
-
-# Створити віртуальне середовище
 python3 -m venv venv
-
-# Активувати (Linux/Mac)
 source venv/bin/activate
-
-# Встановити залежності
 pip install -r requirements.txt
 ```
 
-## 2. Налаштування .env
+## 2. Environment
 
 ```bash
 cp .env.example .env
-nano .env
 ```
 
-Обов'язково вкажіть:
-- `BOT_TOKEN=8582743573:AAG4EPq0NIydAq7gMk8xa9H9vRX9OCrNukw`
-- `BASE_URL=https://ваш-домен.com` (де буде доступний webhook WayForPay)
-- `CLUB_GROUP_LINK=https://t.me/+xxx` (посилання-запрошення в ТГ-групу)
-- `WAYFORPAY_MERCHANT=freelance_user_65cf444d78d4b`
-- `WAYFORPAY_SECRET=73bff90ebaef23615ee044b658104f6ac3783874`
+Set these yourself. Do not commit the filled file.
 
-## 3. WayForPay
+- `BOT_TOKEN` from BotFather
+- `BASE_URL` as `https://your-domain.com`, the host WayForPay can call
+- `CLUB_GROUP_LINK` as the invite to the private group
+- `WAYFORPAY_MERCHANT` and `WAYFORPAY_SECRET` from the WayForPay cabinet
+- `WAYFORPAY_DOMAIN`
 
-У кабінеті WayForPay вкажіть:
-- **Service URL:** `https://ваш-домен.com/webhook/wayforpay`
-- **Return URL:** `https://t.me/ваш_бот` (або посилання на групу)
+## 3. WayForPay cabinet
 
-## 4. Запуск через screen
+- Service URL: `https://your-domain.com/webhook/wayforpay`
+- Return URL: `https://t.me/your_bot`, or the group link
+
+## 4. screen
 
 ```bash
-# Бот
 screen -S sekret_bot
 source venv/bin/activate
 python run_bot.py
-# Натиснути Ctrl+A, потім D (відʼєднатися)
+# Ctrl+A, then D
 
-# Web-сервер (WayForPay)
 screen -S sekret_web
 source venv/bin/activate
 python run_web.py
-# Ctrl+A, D
+# Ctrl+A, then D
 
-# Перевірка
 screen -ls
 ```
 
-## 5. Запуск через systemd
+Both processes have to stay up. The bot sends people to pay. The web process is what hears that they did.
 
-Створіть файл `/etc/systemd/system/sekret-bot.service`:
+## 5. systemd
+
+`/etc/systemd/system/sekret-bot.service`:
 
 ```ini
 [Unit]
@@ -77,39 +68,18 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-Створіть `/etc/systemd/system/sekret-web.service`:
-
-```ini
-[Unit]
-Description=Sekret Club Web Server (WayForPay)
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/path/to/sekret_club
-Environment=PATH=/path/to/sekret_club/venv/bin
-ExecStart=/path/to/sekret_club/venv/bin/python run_web.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Команди:
+`/etc/systemd/system/sekret-web.service` is the same unit with `ExecStart` pointing at `run_web.py` and the description “Sekret Club Web Server (WayForPay)”.
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable sekret-bot sekret-web
-sudo systemctl start sekret-bot
-sudo systemctl start sekret-web
+sudo systemctl start sekret-bot sekret-web
 sudo systemctl status sekret-bot sekret-web
 ```
 
-## 6. Nginx (проксування для HTTPS)
+## 6. Nginx
 
-Щоб WayForPay міг надсилати callback по HTTPS:
+WayForPay needs HTTPS for the callback.
 
 ```nginx
 server {
@@ -128,15 +98,12 @@ server {
 }
 ```
 
-## 7. Перезапуск
+## 7. Restart
 
 ```bash
-# Screen
-screen -r sekret_bot   # підключитися
-# Ctrl+C, потім python run_bot.py
-# Ctrl+A, D
+screen -r sekret_bot
+# Ctrl+C, then python run_bot.py, then Ctrl+A, D
 
-# Systemd
 sudo systemctl restart sekret-bot
 sudo systemctl restart sekret-web
 ```

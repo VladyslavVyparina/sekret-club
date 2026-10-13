@@ -1,38 +1,35 @@
-# Що потрібно для роботи WayForPay
+# What WayForPay needs
 
-## 1. У файлі .env на сервері
+## 1. Server `.env`
 
 ```env
-BASE_URL=http://IP_ВАШОГО_VPS
-WAYFORPAY_MERCHANT=freelance_user_65cf444d78d4b
-WAYFORPAY_SECRET=73bff90ebaef23615ee044b658104f6ac3783874
-WAYFORPAY_DOMAIN=sekret-club.com
+BASE_URL=https://your-domain.com
+WAYFORPAY_MERCHANT=your_merchant_login
+WAYFORPAY_SECRET=your_wayforpay_secret
+WAYFORPAY_DOMAIN=your-domain.com
 ```
 
-**BASE_URL** — IP або домен VPS, де запущено `run_web.py`. Без нього оплата не працюватиме.
+`BASE_URL` is the host where `run_web.py` is reachable. Without it, checkout cannot build the return URL.
 
-Для закритої групи **CLUB_GROUP_LINK** можна не вказувати — після оплати користувач отримає повідомлення, що адмін додасть його до групи.
+For a closed group you can leave `CLUB_GROUP_LINK` empty. After payment the user is told that an admin will add them.
 
-## 2. Кабінет WayForPay
+## 2. WayForPay cabinet
 
-- **Service URL (callback):** `http://ВАШ_IP/webhook/wayforpay`
-- **Return URL:** можна залишити порожнім або вказати `https://t.me/ваш_бот`
+- Service URL (callback): `https://YOUR_HOST/webhook/wayforpay`
+- Return URL: empty, or `https://t.me/your_bot`
 
-## 3. Запуск
+## 3. Processes
 
-Обовʼязково мають працювати **обидва** процеси:
+Both have to be running:
 
 ```bash
-# Термінал 1 — бот
 python3 run_bot.py
-
-# Термінал 2 — web для оплати
 python3 run_web.py
 ```
 
-## 4. Логіка
+## 4. Behavior
 
-- **Скасування підписки** — викликається WayForPay REMOVE, автосписання припиняється.
-- **Не скасовано** — WayForPay списує щомісяця автоматично.
-- **Нагадування** — за 3 дні до кінця підписки.
-- **Неуспішна оплата** — повторні спроби: Day 0, 2, 4, 7, 11, 14.
+- Cancelling a subscription calls WayForPay REMOVE and stops the recurring charge.
+- If it is not cancelled, WayForPay charges every month.
+- A reminder goes out three days before the subscription ends.
+- A failed charge is retried on day 0, 2, 4, 7, 11, and 14.
