@@ -1,170 +1,42 @@
-# Секрет Клуб
+# Sekret Club
 
-Бот закритого клубу: підписка через WayForPay, база знань, розклад і адмінка.
+A private-club Telegram bot: paid subscription through WayForPay, a knowledge base of courses, and a small admin site for the people who run the club.
 
-**Стек.** Python, aiogram, Flask, WayForPay, Google Sheets.
+## Problem
 
-Публічний кейс. Робоча копія з паролями і базами лишається локально і сюди не входить.
+Members needed a paid gate, a place to read lessons, and a link into the club group. The owner needed the payment callback, the member list, and a sheet export without running SQL by hand.
 
----
+## What was built
 
-# Секрет Клуб — Telegram бот
+- `bot/` is the aiogram bot: subscription, lessons, and the group invite after payment.
+- `database/` is the member and payment store.
+- `services/` talks to WayForPay and Google Sheets.
+- `web/` is a Flask app: the WayForPay callback and the admin panel.
+- `data/` holds the course and lesson content.
+- `scheduler_tasks.py` runs recurring jobs.
+- `run_bot.py` and `run_web.py` are the two processes. Both have to be up in production, because the bot sends people to pay and the web process is what hears that they did.
 
-Бот для клубу з підпискою через WayForPay, базою знань та адмін-панеллю.
+## How it works
 
-## Структура проекту
+A guest opens the bot and is offered a plan. The bot creates a WayForPay invoice using `BASE_URL` so the return and the webhook land on this server. Flask receives the callback, marks the member paid, and the bot can then show `CLUB_GROUP_LINK`. Lessons are read from `data/`. Sheets receive a row through the service account file, which is not published here.
 
-```
-sekret_club/
-├── bot/              # Telegram бот (aiogram)
-├── database/         # Моделі та підключення БД
-├── services/         # WayForPay, Google Sheets
-├── web/              # Flask: WayForPay callback, адмін-панель
-├── data/             # База знань (курси, уроки)
-├── config.py
-├── run_bot.py        # Запуск бота
-├── run_web.py        # Запуск web (WayForPay)
-└── requirements.txt
-```
+## Stack
 
-## Швидкий старт
+Python, aiogram, Flask, WayForPay, Google Sheets.
 
-### 1. Встановлення залежностей
+## Run locally
 
 ```bash
-cd /Users/macbookpro/Desktop/sekret_club
 python3 -m venv venv
-source venv/bin/activate   # Linux/Mac
-# або: venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-```
-
-### 2. Налаштування
-
-Скопіюйте `.env.example` в `.env` і вкажіть:
-- `BOT_TOKEN` — токен бота
-- `BASE_URL` — домен сервера (для посилань на оплату та webhook WayForPay)
-- `CLUB_GROUP_LINK` — посилання-запрошення в ТГ-групу клубу
-- `GOOGLE_CREDENTIALS_FILE` та `GOOGLE_SHEET_ID` — для інтеграції з Google Таблицями
-
-### 3. WayForPay
-
-У кабінеті WayForPay вкажіть:
-- **Service URL (callback):** `https://ВАШ_ДОМЕН/webhook/wayforpay`
-- **Return URL:** посилання на бота або групу
-
-### 4. Запуск на сервері
-
-**Бот (polling):**
-```bash
-python run_bot.py
-```
-
-**Web-сервер (WayForPay callback):**
-```bash
-python run_web.py
-```
-
-**Через systemd (Linux):**
-
-Створіть `/etc/systemd/system/sekret-bot.service`:
-```ini
-[Unit]
-Description=Sekret Club Telegram Bot
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/path/to/sekret_club
-ExecStart=/path/to/sekret_club/venv/bin/python run_bot.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Створіть `/etc/systemd/system/sekret-web.service`:
-```ini
-[Unit]
-Description=Sekret Club Web (WayForPay)
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/path/to/sekret_club
-ExecStart=/path/to/sekret_club/venv/bin/python run_web.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Команди:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable sekret-bot sekret-web
-sudo systemctl start sekret-bot sekret-web
-sudo systemctl status sekret-bot sekret-web
-```
-
-**Через screen (простий варіант):**
-```bash
-screen -S bot
 source venv/bin/activate
-python run_bot.py
-# Ctrl+A, D — вийти з screen
-
-screen -S web
-source venv/bin/activate
-python run_web.py
-# Ctrl+A, D
-```
-
-### 5. Адмін-панель
-
-Запустіть окремо на порту 5001:
-```bash
-python -c "from web.admin_panel import run_admin; run_admin()"
-```
-
-Або обʼєднайте з Flask-додатком у `run_web.py`. Доступ: `https://ВАШ_ДОМЕН:5001/admin?secret=ВАШ_ADMIN_PANEL_SECRET`
-
-## Команди для продакшн-сервера
-
-```bash
-# 1. Клонування (якщо з git)
-git clone <repo> sekret_club && cd sekret_club
-
-# 2. Venv та залежності
-python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-
-# 3. Конфіг
 cp .env.example .env
-nano .env   # відредагувати
-
-# 4. Запуск у фоні (screen)
-screen -S sekret_bot -dm bash -c "cd $(pwd) && source venv/bin/activate && python run_bot.py"
-screen -S sekret_web -dm bash -c "cd $(pwd) && source venv/bin/activate && python run_web.py"
-
-# Перевірка
-screen -ls
+python run_web.py
+python run_bot.py
 ```
 
-## Nginx (якщо потрібен HTTPS для WayForPay)
+Set `BOT_TOKEN`, `BASE_URL`, `CLUB_GROUP_LINK`, and the Google sheet id in `.env`.
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name your-domain.com;
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
+## What this public copy leaves out
+
+`.env` and `credentials.json`.
